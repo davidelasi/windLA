@@ -33,6 +33,7 @@ windLA provides access to wind and weather data for the Los Angeles area, includ
 - Buoy data monitoring
 - Meteorological station observations
 
+
 ## Installation
 
 ```bash
