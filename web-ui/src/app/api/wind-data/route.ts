@@ -20,7 +20,7 @@ export async function GET() {
 
     let response: Response | null = null;
     let isTabularFormat = false;
-    let rawData: string;
+    let rawData: string = '';
 
     try {
       // Try tabular format first
@@ -61,9 +61,13 @@ export async function GET() {
       rawData = await response.text();
     }
 
-    // Ensure response is not null (TypeScript safety)
+    // Ensure response and rawData are properly assigned (TypeScript safety)
     if (!response) {
       throw new Error('Failed to fetch data from any source');
+    }
+
+    if (!rawData) {
+      throw new Error('Failed to read data from any source');
     }
 
     debugInfo.responseStatus = response.status;
