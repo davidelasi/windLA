@@ -18,23 +18,26 @@ export async function GET() {
     // Try the tabular data format first, fall back to human-readable format
     console.log('Fetching data from NOAA AGXC1...');
 
-    let response;
+    let response: Response;
     let isTabularFormat = false;
+    let rawData: string;
 
     try {
       // Try tabular format first
-      response = await fetch('https://www.ndbc.noaa.gov/data/realtime2/AGXC1.txt', {
+      const tabularResponse = await fetch('https://www.ndbc.noaa.gov/data/realtime2/AGXC1.txt', {
         headers: {
           'User-Agent': 'Wind-Forecast-App/1.0'
         }
       });
 
-      if (response.ok) {
-        const testData = await response.text();
+      if (tabularResponse.ok) {
+        const testData = await tabularResponse.text();
         // Check if it's tabular data (has multiple space-separated columns)
         const lines = testData.trim().split('\n');
         if (lines.length > 1 && lines[lines.length - 1].split(/\s+/).length > 10) {
           isTabularFormat = true;
+          response = tabularResponse;
+          rawData = testData;
           debugInfo.dataSource = 'tabular';
         }
       }
@@ -50,16 +53,18 @@ export async function GET() {
         }
       });
       debugInfo.dataSource = 'human-readable';
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      rawData = await response.text();
     }
 
     debugInfo.responseStatus = response.status;
     debugInfo.responseHeaders = Object.fromEntries(response.headers.entries());
 
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
-
-    const rawData = await response.text();
+    // rawData is already read above
     debugInfo.rawDataLength = rawData.length;
     debugInfo.rawDataPreview = rawData.substring(0, 500);
 
