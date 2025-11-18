@@ -38,19 +38,44 @@ interface ForecastApiResponse {
   debug?: any;
 }
 
+interface NoaaWindData {
+  timestamp: string;
+  windSpeed: number;
+  windSpeedUnit: string;
+  windDirection: number;
+  windGust: number | null;
+  windGustUnit: string | null;
+}
+
+interface NoaaApiResponse {
+  success: boolean;
+  data?: NoaaWindData;
+  station?: string;
+  location?: string;
+  error?: string;
+  message?: string;
+  debug?: any;
+}
+
 export default function Home() {
   const [windData, setWindData] = useState<WindData | null>(null);
   const [forecastData, setForecastData] = useState<ProcessedForecast | null>(null);
+  const [noaaData, setNoaaData] = useState<NoaaWindData | null>(null);
   const [loading, setLoading] = useState(true);
   const [forecastLoading, setForecastLoading] = useState(true);
+  const [noaaLoading, setNoaaLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [forecastError, setForecastError] = useState<string | null>(null);
+  const [noaaError, setNoaaError] = useState<string | null>(null);
   const [debugInfo, setDebugInfo] = useState<any>(null);
   const [forecastDebugInfo, setForecastDebugInfo] = useState<any>(null);
+  const [noaaDebugInfo, setNoaaDebugInfo] = useState<any>(null);
   const [lastUpdate, setLastUpdate] = useState<string>('');
   const [lastForecastUpdate, setLastForecastUpdate] = useState<string>('');
+  const [lastNoaaUpdate, setLastNoaaUpdate] = useState<string>('');
   const [showDebug, setShowDebug] = useState(false);
   const [showForecastDebug, setShowForecastDebug] = useState(false);
+  const [showNoaaDebug, setShowNoaaDebug] = useState(false);
   const [showOriginalForecast, setShowOriginalForecast] = useState(false);
 
   const fetchWindData = async () => {
@@ -103,18 +128,46 @@ export default function Home() {
     }
   };
 
+  const fetchNoaaData = async () => {
+    try {
+      setNoaaLoading(true);
+      const response = await fetch('/api/noaa-observations');
+      const data: NoaaApiResponse = await response.json();
+
+      // Always capture debug info if available
+      setNoaaDebugInfo(data.debug || null);
+
+      if (data.success && data.data) {
+        setNoaaData(data.data);
+        setLastNoaaUpdate(new Date().toLocaleTimeString());
+        setNoaaError(null);
+      } else {
+        setNoaaError(data.message || 'Failed to fetch NOAA observations');
+        console.error('NOAA API Error:', data);
+      }
+    } catch (err) {
+      setNoaaError('Network error');
+      console.error('NOAA Fetch Error:', err);
+    } finally {
+      setNoaaLoading(false);
+    }
+  };
+
   useEffect(() => {
-    // Fetch both wind data and forecast on initial load
+    // Fetch all data on initial load
     fetchWindData();
     fetchForecastData();
+    fetchNoaaData();
 
     // Set up different refresh intervals
     const windInterval = setInterval(fetchWindData, 5 * 60 * 1000); // Refresh every 5 minutes
     const forecastInterval = setInterval(fetchForecastData, 60 * 60 * 1000); // Refresh every 1 hour
+    const noaaInterval = setInterval(fetchNoaaData, 5 * 60 * 1000); // Refresh every 5 minutes
 
     return () => {
       clearInterval(windInterval);
       clearInterval(forecastInterval);
+      clearInterval(noaaInterval);
     };
   }, []);
 
@@ -288,6 +341,106 @@ export default function Home() {
           <p className="text-xs text-gray-500">
             Station reading: {new Date(windData.datetime).toLocaleString()}
           </p>
+        </div>
+
+        {/* NOAA JSON API Data Section */}
+        <div className="bg-white rounded-2xl shadow-lg p-6 mt-6 border-l-4 border-purple-500">
+          <div className="flex justify-between items-center mb-4">
+            <div>
+              <h3 className="text-lg font-semibold text-gray-800">NOAA API Observations</h3>
+              <p className="text-xs text-gray-600">JSON API • api.weather.gov</p>
+            </div>
+            <button
+              onClick={fetchNoaaData}
+              disabled={noaaLoading}
+              className="bg-purple-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-purple-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {noaaLoading ? 'Loading...' : 'Refresh'}
+            </button>
+          </div>
+
+          {noaaError ? (
+            <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+              <div className="text-red-700 font-medium mb-2">NOAA API Error</div>
+              <p className="text-red-600 text-sm mb-3">{noaaError}</p>
+
+              {noaaDebugInfo && (
+                <div className="mb-3">
+                  <button
+                    onClick={() => setShowNoaaDebug(!showNoaaDebug)}
+                    className="text-xs text-red-600 hover:text-red-800 underline"
+                  >
+                    {showNoaaDebug ? 'Hide' : 'Show'} Debug Info
+                  </button>
+
+                  {showNoaaDebug && (
+                    <div className="bg-gray-100 p-3 rounded mt-2 text-xs overflow-auto max-h-48">
+                      <pre className="whitespace-pre-wrap">
+                        {JSON.stringify(noaaDebugInfo, null, 2)}
+                      </pre>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              <button
+                onClick={() => window.open('/api/noaa-observations', '_blank')}
+                className="bg-red-600 text-white px-4 py-2 rounded text-xs hover:bg-red-700"
+              >
+                Test NOAA API
+              </button>
+            </div>
+          ) : noaaLoading && !noaaData ? (
+            <div className="text-center py-8">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600 mx-auto"></div>
+              <p className="text-gray-600 mt-3">Loading NOAA data...</p>
+            </div>
+          ) : noaaData ? (
+            <div>
+              {/* Wind Speed */}
+              <div className="text-center mb-6">
+                <div className="text-5xl font-bold text-gray-800 mb-2">
+                  {noaaData.windSpeed.toFixed(1)}
+                  <span className="text-2xl text-gray-600 ml-1">{noaaData.windSpeedUnit}</span>
+                </div>
+                <div className={`text-lg font-semibold ${getWindSpeedCategory(noaaData.windSpeed).color}`}>
+                  {getWindSpeedCategory(noaaData.windSpeed).category}
+                </div>
+              </div>
+
+              {/* Wind Details Grid */}
+              <div className="grid grid-cols-2 gap-4 mb-4">
+                <div className="bg-gray-50 rounded-lg p-3 text-center">
+                  <div className="text-sm text-gray-600 mb-1">Direction</div>
+                  <div className="text-xl font-bold text-gray-800">
+                    {getWindDirectionText(noaaData.windDirection)}
+                  </div>
+                  <div className="text-xs text-gray-500">{noaaData.windDirection}°</div>
+                </div>
+                <div className="bg-gray-50 rounded-lg p-3 text-center">
+                  <div className="text-sm text-gray-600 mb-1">Gusts</div>
+                  <div className="text-xl font-bold text-gray-800">
+                    {noaaData.windGust !== null ? (
+                      <>
+                        {noaaData.windGust.toFixed(1)}
+                        <span className="text-sm text-gray-600 ml-1">{noaaData.windGustUnit}</span>
+                      </>
+                    ) : (
+                      <span className="text-gray-400">N/A</span>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* NOAA Data Timestamp */}
+              <div className="text-center">
+                <p className="text-xs text-gray-500">
+                  NOAA observation: {new Date(noaaData.timestamp).toLocaleString()} •
+                  Last updated: {lastNoaaUpdate}
+                </p>
+              </div>
+            </div>
+          ) : null}
         </div>
 
         {/* Area Forecast Section */}
