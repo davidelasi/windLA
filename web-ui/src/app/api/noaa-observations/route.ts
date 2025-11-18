@@ -106,6 +106,9 @@ function extractWindData(properties: any): NoaaWindData {
     if (windSpeedUnit === 'm/s') {
       windSpeed = Math.round(windSpeed * 1.944 * 10) / 10;
       windSpeedUnit = 'kt';
+    } else if (windSpeedUnit === 'km/h') {
+      windSpeed = Math.round(windSpeed * 0.539957 * 10) / 10;
+      windSpeedUnit = 'kt';
     } else if (windSpeedUnit === 'mph') {
       windSpeed = Math.round(windSpeed * 0.868976 * 10) / 10;
       windSpeedUnit = 'kt';
@@ -130,6 +133,9 @@ function extractWindData(properties: any): NoaaWindData {
     // Convert to knots if needed
     if (windGustUnit === 'm/s' && windGust !== null) {
       windGust = Math.round(windGust * 1.944 * 10) / 10;
+      windGustUnit = 'kt';
+    } else if (windGustUnit === 'km/h' && windGust !== null) {
+      windGust = Math.round(windGust * 0.539957 * 10) / 10;
       windGustUnit = 'kt';
     } else if (windGustUnit === 'mph' && windGust !== null) {
       windGust = Math.round(windGust * 0.868976 * 10) / 10;
